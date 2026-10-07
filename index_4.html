@@ -158,6 +158,7 @@
   .badge-bisque { background: #fff3cd; color: #856404; }
   .badge-glaze { background: #fde8e1; color: var(--primary); }
   .badge-pickup { background: #e2f0d9; color: #386641; }
+  .badge-done { background: #d3d3d3; color: #4f4f4f; }
   .badge-retrying { background: #f0e6f5; color: #6b3ba7; }
 
   .project-image-container {
@@ -500,6 +501,7 @@
     'Waiting for bisque fire',
     'Waiting for glaze',
     'Waiting for pick up',
+    'Done',
     'Retrying'
   ];
 
@@ -729,6 +731,7 @@
     if (stage === 'Waiting for bisque fire') return 'badge-bisque';
     if (stage === 'Waiting for glaze') return 'badge-glaze';
     if (stage === 'Waiting for pick up') return 'badge-pickup';
+    if (stage === 'Done') return 'badge-done';
     if (stage === 'Retrying') return 'badge-retrying';
     return 'badge-trimming';
   }
@@ -890,7 +893,7 @@
     stages.forEach(s => {
       const count = projects.filter(p => p.stage === s).length;
       const isActive = selectedStageFilters.includes(s);
-      const shortName = s.replace('Waiting for ', '');
+      const shortName = s.startsWith('Waiting for ') ? s.replace('Waiting for ', '') : s;
       html += `
         <div class="filter-chip ${isActive ? 'active' : ''}" onclick="toggleStageFilter('${s}')">
           ${shortName} (${count})
