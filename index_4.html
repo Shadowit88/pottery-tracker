@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pottery Tracker</title>
+<style>
+  :root {
+    --bg-color: #f4f1ea;
+    --card-bg: #ffffff;
+    --primary: #c86d51;
+    --primary-dark: #a85339;
+    --text-main: #2c2523;
+    --text-muted: #7c7267;
+    --border-color: #e8e2d8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  
+  html, body {
+    width: 100%;
+    min-height: 100vh;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+  }
+
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  .screen {
+    width: 100%;
+    max-width: 480px;
+    min-height: 100vh;
+    background: #fcfbfa;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    padding-bottom: 70px;
+  }
+
+  /* Header */
+  .app-header {
+    padding: 16px 20px 6px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fcfbfa;
+  }
+
+  .app-title { font-size: 20px; font-weight: 800; color: var(--text-main); }
+  .header-actions { display: flex; gap: 6px; }
+
+  /* Stage Filter Chips Bar */
+  .filter-bar {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 6px 16px 10px 16px;
+    scrollbar-width: none;
+  }
+  .filter-bar::-webkit-scrollbar { display: none; }
+
+  .filter-chip {
+    flex: 0 0 auto;
+    padding: 5px 10px;
+    border-radius: 16px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #f0ebe4;
+    color: var(--text-muted);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+  }
+
+  .filter-chip.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary-dark);
+  }
+
+  /* Views */
+  .content-view {
+    flex: 1;
+    padding: 8px 16px;
+    display: none;
+  }
+
+  .content-view.active { display: block; }
+
+  /* Cards */
+  .card {
+    background: var(--card-bg);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    border: 1px solid var(--border-color);
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .card-title { font-size: 15px; font-weight: 700; }
+  
+  /* Status Cycler Controls */
+  .status-cycler {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #f7f3ee;
+    padding: 2px 4px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+  }
+
+  .stage-arrow-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    line-height: 1;
+    user-select: none;
+  }
+
+  .stage-arrow-btn:hover {
+    background: #e0d8ce;
+    color: var(--text-main);
+  }
+
+  .stage-arrow-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .badge {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: capitalize;
+    white-space: nowrap;
+  }
+
+  .badge-trimming { background: #e8f0fe; color: #1a73e8; }
+  .badge-bisque { background: #fff3cd; color: #856404; }
+  .badge-glaze { background: #fde8e1; color: var(--primary); }
+  .badge-pickup { background: #e2f0d9; color: #386641; }
+  .badge-retrying { background: #f0e6f5; color: #6b3ba7; }
+
+  .project-image-container {
+    width: 100%;
+    height: 140px;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 10px;
+    background: #f0ebe4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .project-image-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .meta-row { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .meta-row span { color: var(--text-main); font-weight: 600; }
+
+  .glaze-section-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-top: 8px;
+  }
+
+  .glaze-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .glaze-tag {
+    background: #f2eee9;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  .glaze-select-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .glaze-select-chip {
+    padding: 5px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #f0ebe4;
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+  }
+  .glaze-select-chip.selected {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary-dark);
+  }
+
+  .editable {
+    cursor: pointer;
+    border-bottom: 1px dashed transparent;
+    transition: all 0.2s;
+  }
+  .editable:hover {
+    background-color: #f7f3ee;
+    border-bottom-color: var(--primary);
+    border-radius: 3px;
+  }
+
+  .inline-input {
+    font-size: 12px;
+    padding: 2px 4px;
+    border: 1px solid var(--primary);
+    border-radius: 4px;
+    outline: none;
+    width: 100%;
+    font-weight: 600;
+  }
+
+  .btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-secondary { background: #f2eee9; color: var(--text-main); }
+  .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); }
+  .btn-outline:hover { color: var(--primary-dark); border-color: var(--primary); }
+  .btn-danger { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+
+  .btn-sm { padding: 4px 8px; font-size: 11px; }
+
+  .card-footer {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border-color);
+    flex-wrap: wrap;
+  }
+
+  .form-group { margin-bottom: 10px; }
+  .form-group label { display: block; font-size: 11px; font-weight: 600; margin-bottom: 4px; color: var(--text-muted); }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    font-size: 12px;
+  }
+
+  .file-upload-btn {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    background: #f2eee9;
+    border: 1px dashed var(--primary);
+    border-radius: 8px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary-dark);
+    cursor: pointer;
+  }
+
+  .glaze-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .nav-bar {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    height: 60px;
+    background: white;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 90;
+  }
+
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 10px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .nav-item.active { color: var(--primary); }
+  .nav-item svg { width: 20px; height: 20px; fill: currentColor; margin-bottom: 2px; }
+
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 100;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal.active { display: flex; }
+  .modal-content {
+    background: white;
+    width: 100%;
+    max-width: 480px;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    padding: 16px;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+
+  .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+  
+  .toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2c2523;
+    color: white;
+    font-size: 11px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    z-index: 200;
+    display: none;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  }
+
+  .backup-box {
+    background: #f9f6f0;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+
+  .backup-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text-main);
+  }
+
+  .backup-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+
+  #inline-file-input, #import-file-input, #modal-file-input { display: none; }
+</style>
+</head>
+<body>
+
+<div class="screen">
+  <div class="toast" id="toast">Saved locally!</div>
+
+  <input type="file" id="inline-file-input" accept="image/*" onchange="handleInlineImageUpload(event)">
+  <input type="file" id="import-file-input" accept=".json" onchange="handleImportBackup(event)">
+  <input type="file" id="modal-file-input" accept="image/*" onchange="handleModalImageSelect(event)">
+
+  <div class="app-header">
+    <span class="app-title" id="header-title">Pottery Track</span>
+    <div class="header-actions">
+      <button class="btn btn-sm btn-outline" onclick="openBackupModal()">💾 Backup</button>
+      <button class="btn btn-sm" id="top-action-btn" onclick="openAddModal()">+ Add</button>
+    </div>
+  </div>
+
+  <div class="filter-bar" id="stage-filter-bar"></div>
+
+  <div class="content-view active" id="view-projects">
+    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; text-align: center;">💡 Tap ◀/▶ to cycle status | Tap text/photos to edit</div>
+    <div id="projects-list"></div>
+  </div>
+
+  <div class="content-view" id="view-glazes">
+    <div class="card">
+      <div style="font-weight: 700; margin-bottom: 10px; font-size: 14px;">Studio Glaze Master List</div>
+      <div id="glazes-list"></div>
+    </div>
+  </div>
+
+  <div class="content-view" id="view-wishlist">
+    <div id="wishlist-list"></div>
+  </div>
+
+  <div class="nav-bar">
+    <div class="nav-item active" onclick="switchTab('projects')">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      Projects
+    </div>
+    <div class="nav-item" onclick="switchTab('glazes')">
+      <svg viewBox="0 0 24 24"><path d="M19 11L15 3H9L5 11v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-9zM11 5h2v2h-2V5zm-4 8h10v7H7v-7z"/></svg>
+      Glazes
+    </div>
+    <div class="nav-item" onclick="switchTab('wishlist')">
+      <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      Wishlist
+    </div>
+  </div>
+
+  <!-- Generic Form Modal -->
+  <div class="modal" id="add-modal">
+    <div class="modal-content">
+      <div class="modal-title" id="modal-heading">Add New Item</div>
+      <div id="modal-form-container"></div>
+      <div style="display: flex; gap: 8px; margin-top: 14px;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="closeModal('add-modal')">Cancel</button>
+        <button class="btn" style="flex:1;" onclick="submitModalForm()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Backup & Restore Modal -->
+  <div class="modal" id="backup-modal">
+    <div class="modal-content">
+      <div class="modal-title">Data Backup & Restore</div>
+      
+      <div class="backup-box">
+        <div class="backup-title">📁 Manual File Backup</div>
+        <div class="backup-desc">Export your projects, photos, and glazes to a file in your phone's Documents/Downloads folder. If browser history is ever cleared, import this file to restore everything.</div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-sm" style="flex:1;" onclick="exportBackupFile()">Export Backup</button>
+          <button class="btn btn-sm btn-outline" style="flex:1;" onclick="triggerImportPicker()">Import File</button>
+        </div>
+      </div>
+
+      <div class="backup-box">
+        <div class="backup-title">⏰ Scheduled Auto-Backup Reminders</div>
+        <div class="backup-desc">Automatically prompts you to download a fresh backup file when you open the app if more than 24 hours have passed since your last export.</div>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+          <label style="font-size: 12px; font-weight: 600;">Enable Daily Reminders</label>
+          <input type="checkbox" id="chk-auto-backup" onchange="toggleAutoBackupSetting(this.checked)">
+        </div>
+      </div>
+
+      <div style="display: flex; margin-top: 14px;">
+        <button class="btn btn-secondary" style="width: 100%;" onclick="closeModal('backup-modal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let activeTab = 'projects';
+  let selectedStageFilters = [];
+  let modalSelectedGlazes = [];
+  let currentModalImageData = null;
+  let activeEditingTarget = { type: 'project', id: null };
+
+  const stages = [
+    'Waiting for trimming',
+    'Waiting for bisque fire',
+    'Waiting for glaze',
+    'Waiting for pick up',
+    'Retrying'
+  ];
+
+  const defaultGlazes = [
+    { id: 1, name: 'Honey Flux', cone: 'Cone 6', available: true },
+    { id: 2, name: 'Oatmeal', cone: 'Cone 6', available: true },
+    { id: 3, name: 'Celadon Blue', cone: 'Cone 5-6', available: true },
+    { id: 4, name: 'Obsidian', cone: 'Cone 6', available: false }
+  ];
+
+  const defaultProjects = [
+    {
+      id: 1,
+      title: 'Speckled Ramen Bowl',
+      clay: 'Speckled Buff',
+      weight: 1000,
+      beforeSize: '18cm W × 10cm H',
+      afterSize: '16cm W × 9cm H',
+      stage: 'Waiting for trimming',
+      glazeIds: [1, 2],
+      image: null,
+      notes: 'Started with 1kg clay. Trim foot ring when slightly drier.'
+    }
+  ];
+
+  const defaultWishlist = [
+    { 
+      id: 1, 
+      title: 'Large Textured Vase', 
+      targetWeight: 1200, 
+      image: null,
+      notes: 'Try coil technique with carved rib pattern' 
+    }
+  ];
+
+  if (navigator.storage && navigator.storage.persist) {
+    navigator.storage.persist().then(granted => {
+      if (granted) console.log("Storage persistence granted.");
+    });
+  }
+
+  let glazes = JSON.parse(localStorage.getItem('pottery_glazes')) || defaultGlazes;
+  let projects = JSON.parse(localStorage.getItem('pottery_projects')) || defaultProjects;
+  let wishlist = JSON.parse(localStorage.getItem('pottery_wishlist')) || defaultWishlist;
+
+  let autoBackupEnabled = JSON.parse(localStorage.getItem('pottery_auto_backup_enabled')) ?? true;
+  let lastBackupTimestamp = parseInt(localStorage.getItem('pottery_last_backup_time')) || 0;
+
+  function saveData() {
+    localStorage.setItem('pottery_glazes', JSON.stringify(glazes));
+    localStorage.setItem('pottery_projects', JSON.stringify(projects));
+    localStorage.setItem('pottery_wishlist', JSON.stringify(wishlist));
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerText = msg;
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 2500);
+  }
+
+  function checkScheduledBackupReminder() {
+    if (!autoBackupEnabled) return;
+
+    const NOW = Date.now();
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+    if (NOW - lastBackupTimestamp >= TWENTY_FOUR_HOURS) {
+      setTimeout(() => {
+        if (confirm("⏰ Scheduled Backup: It's been over 24 hours since your last file backup. Would you like to export a backup file now to keep your data safe?")) {
+          exportBackupFile();
+        }
+      }, 1000);
+    }
+  }
+
+  function exportBackupFile() {
+    const backupData = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      glazes,
+      projects,
+      wishlist
+    };
+
+    const jsonStr = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const d = new Date();
+    const dateStamp = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pottery-tracker-backup-${dateStamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    lastBackupTimestamp = Date.now();
+    localStorage.setItem('pottery_last_backup_time', lastBackupTimestamp.toString());
+    
+    showToast('Backup exported to file!');
+  }
+
+  function triggerImportPicker() {
+    document.getElementById('import-file-input').click();
+  }
+
+  function handleImportBackup(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      try {
+        const imported = JSON.parse(evt.target.result);
+        if (imported && imported.projects && imported.glazes && imported.wishlist) {
+          if (confirm('Importing this file will overwrite your current projects on this device. Proceed?')) {
+            projects = imported.projects;
+            glazes = imported.glazes;
+            wishlist = imported.wishlist;
+            saveData();
+            render();
+            closeModal('backup-modal');
+            showToast('All projects restored!');
+          }
+        } else {
+          alert('Invalid backup file format.');
+        }
+      } catch (err) {
+        alert('Could not parse the backup file.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
+  function toggleAutoBackupSetting(checked) {
+    autoBackupEnabled = checked;
+    localStorage.setItem('pottery_auto_backup_enabled', JSON.stringify(checked));
+    showToast(checked ? 'Daily backup reminder ON' : 'Daily backup reminder OFF');
+  }
+
+  function switchTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.nav-item').forEach((el, i) => {
+      el.classList.toggle('active', (tab === 'projects' && i === 0) || (tab === 'glazes' && i === 1) || (tab === 'wishlist' && i === 2));
+    });
+
+    document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
+    document.getElementById(`view-${tab}`).classList.add('active');
+    document.getElementById('stage-filter-bar').style.display = (tab === 'projects') ? 'flex' : 'none';
+
+    const titleMap = { projects: 'Pottery Track', glazes: 'Studio Glazes', wishlist: 'Project Wishlist' };
+    document.getElementById('header-title').innerText = titleMap[tab];
+
+    render();
+  }
+
+  function toggleStageFilter(stage) {
+    if (stage === 'ALL') {
+      selectedStageFilters = [];
+    } else {
+      const index = selectedStageFilters.indexOf(stage);
+      if (index > -1) selectedStageFilters.splice(index, 1);
+      else selectedStageFilters.push(stage);
+    }
+    render();
+  }
+
+  function cycleProjectStage(projectId, direction) {
+    const proj = projects.find(p => p.id === projectId);
+    if (!proj) return;
+
+    const currentIndex = stages.indexOf(proj.stage);
+    let newIndex = currentIndex + direction;
+
+    if (newIndex >= 0 && newIndex < stages.length) {
+      proj.stage = stages[newIndex];
+      saveData();
+      render();
+    }
+  }
+
+  function deleteProject(id) {
+    if (confirm('Delete this project?')) {
+      projects = projects.filter(p => p.id !== id);
+      saveData();
+      render();
+    }
+  }
+
+  function toggleGlazeStatus(id) {
+    const glaze = glazes.find(g => g.id === id);
+    if (glaze) {
+      glaze.available = !glaze.available;
+      saveData();
+      render();
+    }
+  }
+
+  function deleteGlaze(id) {
+    if (confirm('Delete this glaze?')) {
+      glazes = glazes.filter(g => g.id !== id);
+      projects.forEach(p => {
+        if (p.glazeIds) {
+          p.glazeIds = p.glazeIds.filter(gId => gId !== id);
+        }
+      });
+      saveData();
+      render();
+    }
+  }
+
+  function deleteWishlist(id) {
+    if (confirm('Delete this item from wishlist?')) {
+      wishlist = wishlist.filter(w => w.id !== id);
+      saveData();
+      render();
+    }
+  }
+
+  function getBadgeClass(stage) {
+    if (stage === 'Waiting for trimming') return 'badge-trimming';
+    if (stage === 'Waiting for bisque fire') return 'badge-bisque';
+    if (stage === 'Waiting for glaze') return 'badge-glaze';
+    if (stage === 'Waiting for pick up') return 'badge-pickup';
+    if (stage === 'Retrying') return 'badge-retrying';
+    return 'badge-trimming';
+  }
+
+  function copyToWishlist(projectId) {
+    const p = projects.find(proj => proj.id === projectId);
+    if (p) {
+      p.stage = 'Retrying';
+
+      wishlist.push({
+        id: Date.now(),
+        title: `${p.title} (Retry)`,
+        targetWeight: p.weight,
+        image: p.image,
+        notes: `Redo attempt. Previous note: ${p.notes || 'None'}`
+      });
+      saveData();
+      showToast('Moved to Retrying & Wishlist!');
+      render();
+    }
+  }
+
+  function startWishlistProject(wishlistId) {
+    const w = wishlist.find(item => item.id === wishlistId);
+    if (w) {
+      projects.push({
+        id: Date.now(),
+        title: w.title,
+        clay: 'Standard Clay',
+        weight: w.targetWeight || 1000,
+        beforeSize: 'Unmeasured',
+        afterSize: 'Unmeasured',
+        stage: 'Waiting for trimming',
+        glazeIds: [],
+        image: w.image || null,
+        notes: w.notes || ''
+      });
+      wishlist = wishlist.filter(item => item.id !== wishlistId);
+      saveData();
+      switchTab('projects');
+    }
+  }
+
+  function triggerGalleryPicker(type, id) {
+    activeEditingTarget = { type, id };
+    document.getElementById('inline-file-input').click();
+  }
+
+  function removePhoto(type, id) {
+    if (type === 'project') {
+      const item = projects.find(p => p.id === id);
+      if (item) item.image = null;
+    } else if (type === 'wishlist') {
+      const item = wishlist.find(w => w.id === id);
+      if (item) item.image = null;
+    }
+    saveData();
+    render();
+  }
+
+  function handleInlineImageUpload(e) {
+    const file = e.target.files[0];
+    if (file && activeEditingTarget.id) {
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        if (activeEditingTarget.type === 'project') {
+          const item = projects.find(p => p.id === activeEditingTarget.id);
+          if (item) item.image = evt.target.result;
+        } else if (activeEditingTarget.type === 'wishlist') {
+          const item = wishlist.find(w => w.id === activeEditingTarget.id);
+          if (item) item.image = evt.target.result;
+        }
+        saveData();
+        render();
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+  }
+
+  function handleModalImageSelect(e) {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        currentModalImageData = evt.target.result;
+        const prev = document.getElementById('modal-img-preview');
+        if (prev) {
+          prev.src = currentModalImageData;
+          prev.style.display = 'block';
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  function makeEditable(element, projectId, field, type = 'text') {
+    const proj = projects.find(p => p.id === projectId);
+    if (!proj) return;
+
+    if (type === 'glazes') {
+      const select = document.createElement('select');
+      select.className = 'inline-input';
+      select.multiple = true;
+      select.style.height = '70px';
+      
+      const blankOpt = document.createElement('option');
+      blankOpt.value = 'none';
+      blankOpt.innerText = '-- None / Raw Finish --';
+      if (proj.glazeIds.length === 0) blankOpt.selected = true;
+      select.appendChild(blankOpt);
+
+      glazes.filter(g => g.available).forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g.id;
+        opt.innerText = g.name;
+        if (proj.glazeIds.includes(g.id)) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      select.onblur = () => {
+        const selected = Array.from(select.selectedOptions).map(o => o.value);
+        if (selected.includes('none')) {
+          proj.glazeIds = [];
+        } else {
+          proj.glazeIds = selected.map(o => parseInt(o));
+        }
+        saveData();
+        render();
+      };
+      element.replaceWith(select);
+      select.focus();
+      return;
+    }
+
+    const input = document.createElement(type === 'textarea' ? 'textarea' : 'input');
+    input.className = 'inline-input';
+    if (type === 'number') input.type = 'number';
+    input.value = proj[field] || '';
+
+    const save = () => {
+      const val = input.value.trim();
+      proj[field] = type === 'number' ? (val ? parseFloat(val) : 0) : (val || 'Unmeasured');
+      saveData();
+      render();
+    };
+
+    input.onblur = save;
+    input.onkeydown = (e) => { if (e.key === 'Enter' && type !== 'textarea') save(); };
+    element.replaceWith(input);
+    input.focus();
+  }
+
+  function renderFilterBar() {
+    const filterContainer = document.getElementById('stage-filter-bar');
+    const isAllActive = selectedStageFilters.length === 0;
+
+    let html = '';
+    stages.forEach(s => {
+      const count = projects.filter(p => p.stage === s).length;
+      const isActive = selectedStageFilters.includes(s);
+      const shortName = s.replace('Waiting for ', '');
+      html += `
+        <div class="filter-chip ${isActive ? 'active' : ''}" onclick="toggleStageFilter('${s}')">
+          ${shortName} (${count})
+        </div>
+      `;
+    });
+
+    html += `
+      <div class="filter-chip ${isAllActive ? 'active' : ''}" onclick="toggleStageFilter('ALL')">
+        All (${projects.length})
+      </div>
+    `;
+
+    filterContainer.innerHTML = html;
+  }
+
+  function render() {
+    renderFilterBar();
+
+    const filteredProjects = selectedStageFilters.length === 0 
+      ? projects 
+      : projects.filter(p => selectedStageFilters.includes(p.stage));
+
+    const projectsContainer = document.getElementById('projects-list');
+    if (filteredProjects.length === 0) {
+      projectsContainer.innerHTML = `
+        <div style="text-align: center; color: var(--text-muted); padding: 40px 10px; font-size: 13px;">
+          No projects found in the selected stage(s).
+        </div>
+      `;
+    } else {
+      projectsContainer.innerHTML = filteredProjects.map(p => {
+        const assignedGlazes = glazes.filter(g => p.glazeIds.includes(g.id));
+        const stageIdx = stages.indexOf(p.stage);
+        
+        return `
+          <div class="card">
+            ${p.image ? `
+              <div class="project-image-container">
+                <img src="${p.image}" alt="${p.title}" />
+              </div>
+            ` : ''}
+
+            <div class="card-header">
+              <div class="card-title editable" onclick="makeEditable(this, ${p.id}, 'title')">${p.title}</div>
+              
+              <div class="status-cycler">
+                <button class="stage-arrow-btn" ${stageIdx <= 0 ? 'disabled' : ''} onclick="cycleProjectStage(${p.id}, -1)">◀</button>
+                <span class="badge ${getBadgeClass(p.stage)}">${p.stage}</span>
+                <button class="stage-arrow-btn" ${stageIdx >= stages.length - 1 ? 'disabled' : ''} onclick="cycleProjectStage(${p.id}, 1)">▶</button>
+              </div>
+            </div>
+
+            <div class="meta-row">Clay Body: <span class="editable" onclick="makeEditable(this, ${p.id}, 'clay')">${p.clay}</span></div>
+            <div class="meta-row">Weight: <span class="editable" onclick="makeEditable(this, ${p.id}, 'weight', 'number')">${p.weight}g</span></div>
+            <div class="meta-row">Before Dimensions: <span class="editable" onclick="makeEditable(this, ${p.id}, 'beforeSize')">${p.beforeSize || 'Unmeasured'}</span></div>
+            <div class="meta-row">After Dimensions: <span class="editable" onclick="makeEditable(this, ${p.id}, 'afterSize')">${p.afterSize || 'Unmeasured'}</span></div>
+            <div class="meta-row">Notes: <span class="editable" onclick="makeEditable(this, ${p.id}, 'notes', 'textarea')">${p.notes || 'Click to add notes...'}</span></div>
+            
+            <div class="glaze-section-title">Glazes:</div>
+            <div class="glaze-tags editable" onclick="makeEditable(this, ${p.id}, 'glazeIds', 'glazes')">
+              ${assignedGlazes.length > 0 
+                ? assignedGlazes.map(g => `<span class="glaze-tag">${g.name}</span>`).join('') 
+                : '<span class="glaze-tag" style="background:#e0e0e0; color:#666;">None / Raw Finish</span>'}
+            </div>
+
+            <div class="card-footer">
+              <button class="btn btn-outline btn-sm" onclick="triggerGalleryPicker('project', ${p.id})">🖼️ ${p.image ? 'Choose Photo' : 'Add Photo'}</button>
+              ${p.image ? `<button class="btn btn-outline btn-sm" onclick="removePhoto('project', ${p.id})">🗑️ Photo</button>` : ''}
+              ${p.stage !== 'Retrying' ? `<button class="btn btn-outline btn-sm" onclick="copyToWishlist(${p.id})">🔄 Retry</button>` : ''}
+              <button class="btn btn-danger btn-sm" onclick="deleteProject(${p.id})">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    document.getElementById('glazes-list').innerHTML = glazes.map(g => `
+      <div class="glaze-item">
+        <div>
+          <div style="font-weight:600; font-size:13px; ${!g.available ? 'color:#999; text-decoration:line-through;' : ''}">${g.name}</div>
+          <div style="font-size:11px; color:var(--text-muted);">${g.cone}</div>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button class="btn btn-sm ${g.available ? 'btn-secondary' : ''}" onclick="toggleGlazeStatus(${g.id})">
+            ${g.available ? 'Deactivate' : 'Activate'}
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="deleteGlaze(${g.id})">Delete</button>
+        </div>
+      </div>
+    `).join('');
+
+    document.getElementById('wishlist-list').innerHTML = wishlist.map(w => `
+      <div class="card">
+        ${w.image ? `
+          <div class="project-image-container">
+            <img src="${w.image}" alt="${w.title}" />
+          </div>
+        ` : ''}
+        <div class="card-header">
+          <div class="card-title">${w.title}</div>
+          <span class="badge badge-trimming">${w.targetWeight}g target</span>
+        </div>
+        ${w.notes ? `<div class="meta-row">Notes: <span>${w.notes}</span></div>` : ''}
+        
+        <div class="card-footer">
+          <button class="btn btn-outline btn-sm" onclick="triggerGalleryPicker('wishlist', ${w.id})">🖼️ ${w.image ? 'Choose Photo' : 'Add Photo'}</button>
+          ${w.image ? `<button class="btn btn-outline btn-sm" onclick="removePhoto('wishlist', ${w.id})">🗑️ Photo</button>` : ''}
+          <button class="btn btn-danger btn-sm" onclick="deleteWishlist(${w.id})">Delete</button>
+          <button class="btn btn-sm" onclick="startWishlistProject(${w.id})">Start Project</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function toggleModalGlazeSelect(glazeId) {
+    if (glazeId === 'none') {
+      modalSelectedGlazes = [];
+    } else {
+      const idx = modalSelectedGlazes.indexOf(glazeId);
+      if (idx > -1) modalSelectedGlazes.splice(idx, 1);
+      else modalSelectedGlazes.push(glazeId);
+    }
+    renderModalGlazeChips();
+  }
+
+  function renderModalGlazeChips() {
+    const chipContainer = document.getElementById('modal-glaze-chips');
+    if (!chipContainer) return;
+    
+    const isNoneSelected = modalSelectedGlazes.length === 0;
+
+    let html = `
+      <div class="glaze-select-chip ${isNoneSelected ? 'selected' : ''}" onclick="toggleModalGlazeSelect('none')">
+        None / Raw Finish
+      </div>
+    `;
+
+    glazes.filter(g => g.available).forEach(g => {
+      const isSelected = modalSelectedGlazes.includes(g.id);
+      html += `
+        <div class="glaze-select-chip ${isSelected ? 'selected' : ''}" onclick="toggleModalGlazeSelect(${g.id})">
+          ${g.name}
+        </div>
+      `;
+    });
+
+    chipContainer.innerHTML = html;
+  }
+
+  function openAddModal() {
+    const container = document.getElementById('modal-form-container');
+    const heading = document.getElementById('modal-heading');
+    currentModalImageData = null;
+    modalSelectedGlazes = [];
+
+    if (activeTab === 'projects') {
+      heading.innerText = 'Add New Project';
+      container.innerHTML = `
+        <div class="form-group">
+          <label>Project Title</label>
+          <input type="text" id="m-title" placeholder="e.g. Speckled Mug">
+        </div>
+        <div class="form-group">
+          <label>Clay Body</label>
+          <input type="text" id="m-clay" placeholder="e.g. Speckled Buff, Stoneware">
+        </div>
+        <div class="form-group">
+          <label>Starting Weight (grams)</label>
+          <input type="number" id="m-weight" placeholder="e.g. 500">
+        </div>
+        <div class="form-group">
+          <label>Initial Stage</label>
+          <select id="m-stage">
+            ${stages.map(s => `<option value="${s}">${s}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Select Glazes</label>
+          <div class="glaze-select-grid" id="modal-glaze-chips"></div>
+        </div>
+        <div class="form-group">
+          <label>Photo</label>
+          <div class="file-upload-btn" onclick="document.getElementById('modal-file-input').click()">📷 Choose Image</div>
+          <img id="modal-img-preview" style="width:100%; height:120px; object-fit:cover; border-radius:8px; margin-top:8px; display:none;">
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="m-notes" rows="2" placeholder="Inspiration, dimensions, throwing notes..."></textarea>
+        </div>
+      `;
+      renderModalGlazeChips();
+    } else if (activeTab === 'glazes') {
+      heading.innerText = 'Add New Glaze';
+      container.innerHTML = `
+        <div class="form-group">
+          <label>Glaze Name</label>
+          <input type="text" id="m-glaze-name" placeholder="e.g. Obsidian">
+        </div>
+        <div class="form-group">
+          <label>Firing Cone / Temp</label>
+          <input type="text" id="m-glaze-cone" placeholder="e.g. Cone 5-6">
+        </div>
+      `;
+    } else if (activeTab === 'wishlist') {
+      heading.innerText = 'Add Wishlist Idea';
+      container.innerHTML = `
+        <div class="form-group">
+          <label>Item Name</label>
+          <input type="text" id="m-wish-title" placeholder="e.g. Large Textured Pitcher">
+        </div>
+        <div class="form-group">
+          <label>Target Weight (grams)</label>
+          <input type="number" id="m-wish-weight" placeholder="e.g. 1500">
+        </div>
+        <div class="form-group">
+          <label>Inspiration Photo</label>
+          <div class="file-upload-btn" onclick="document.getElementById('modal-file-input').click()">📷 Choose Image</div>
+          <img id="modal-img-preview" style="width:100%; height:120px; object-fit:cover; border-radius:8px; margin-top:8px; display:none;">
+        </div>
+        <div class="form-group">
+          <label>Notes & Technique Ideas</label>
+          <textarea id="m-wish-notes" rows="2" placeholder="Carving styles, rim finish, references..."></textarea>
+        </div>
+      `;
+    }
+
+    document.getElementById('add-modal').classList.add('active');
+  }
+
+  function submitModalForm() {
+    if (activeTab === 'projects') {
+      const title = document.getElementById('m-title').value.trim() || 'Untitled Piece';
+      const clay = document.getElementById('m-clay').value.trim() || 'Standard Clay';
+      const weight = parseFloat(document.getElementById('m-weight').value) || 0;
+      const stage = document.getElementById('m-stage').value;
+      const notes = document.getElementById('m-notes').value.trim();
+
+      projects.unshift({
+        id: Date.now(),
+        title,
+        clay,
+        weight,
+        beforeSize: 'Unmeasured',
+        afterSize: 'Unmeasured',
+        stage,
+        glazeIds: modalSelectedGlazes,
+        image: currentModalImageData,
+        notes
+      });
+    } else if (activeTab === 'glazes') {
+      const name = document.getElementById('m-glaze-name').value.trim();
+      const cone = document.getElementById('m-glaze-cone').value.trim() || 'Cone 6';
+
+      if (!name) {
+        alert('Glaze name is required.');
+        return;
+      }
+
+      glazes.push({
+        id: Date.now(),
+        name,
+        cone,
+        available: true
+      });
+    } else if (activeTab === 'wishlist') {
+      const title = document.getElementById('m-wish-title').value.trim() || 'Wishlist Project';
+      const targetWeight = parseFloat(document.getElementById('m-wish-weight').value) || 0;
+      const notes = document.getElementById('m-wish-notes').value.trim();
+
+      wishlist.unshift({
+        id: Date.now(),
+        title,
+        targetWeight,
+        image: currentModalImageData,
+        notes
+      });
+    }
+
+    saveData();
+    render();
+    closeModal('add-modal');
+    showToast('Saved successfully!');
+  }
+
+  function openBackupModal() {
+    document.getElementById('chk-auto-backup').checked = autoBackupEnabled;
+    document.getElementById('backup-modal').classList.add('active');
+  }
+
+  function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+  }
+
+  // Initial render and check scheduled backups
+  render();
+  checkScheduledBackupReminder();
+</script>
+</body>
+</html>
