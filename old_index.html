@@ -760,19 +760,16 @@
   function handleInlineImageUpload(e) {
     const file = e.target.files[0];
     if (file && activeEditingTarget.id) {
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        if (activeEditingTarget.type === 'project') {
-          const item = projects.find(p => p.id === activeEditingTarget.id);
-          if (item) item.image = evt.target.result;
-        } else if (activeEditingTarget.type === 'wishlist') {
-          const item = wishlist.find(w => w.id === activeEditingTarget.id);
-          if (item) item.image = evt.target.result;
-        }
-        saveData();
-        render();
-      };
-      reader.readAsDataURL(file);
+      const imageUrl = URL.createObjectURL(file);
+      if (activeEditingTarget.type === 'project') {
+        const item = projects.find(p => p.id === activeEditingTarget.id);
+        if (item) item.image = imageUrl;
+      } else if (activeEditingTarget.type === 'wishlist') {
+        const item = wishlist.find(w => w.id === activeEditingTarget.id);
+        if (item) item.image = imageUrl;
+      }
+      saveData();
+      render();
     }
     e.target.value = '';
   }
@@ -780,16 +777,12 @@
   function handleModalImageSelect(e) {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        currentModalImageData = evt.target.result;
-        const prev = document.getElementById('modal-img-preview');
-        if (prev) {
-          prev.src = currentModalImageData;
-          prev.style.display = 'block';
-        }
-      };
-      reader.readAsDataURL(file);
+      currentModalImageData = URL.createObjectURL(file);
+      const prev = document.getElementById('modal-img-preview');
+      if (prev) {
+        prev.src = currentModalImageData;
+        prev.style.display = 'block';
+      }
     }
     e.target.value = '';
   }
@@ -896,7 +889,7 @@
         const stageIdx = stages.indexOf(p.stage);
         
         return `
-          <div class="card" id="project-card-${p.id}">
+          <div class="card">
             ${p.image ? `
               <div class="project-image-container">
                 <img src="${p.image}" alt="${p.title}" />
@@ -952,7 +945,7 @@
     `).join('');
 
     document.getElementById('wishlist-list').innerHTML = wishlist.map(w => `
-      <div class="card" id="wishlist-card-${w.id}">
+      <div class="card">
         ${w.image ? `
           <div class="project-image-container">
             <img src="${w.image}" alt="${w.title}" />
