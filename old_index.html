@@ -816,16 +816,19 @@
   function handleInlineImageUpload(e) {
     const file = e.target.files[0];
     if (file && activeEditingTarget.id) {
-      const imageUrl = URL.createObjectURL(file);
-      if (activeEditingTarget.type === 'project') {
-        const item = projects.find(p => p.id === activeEditingTarget.id);
-        if (item) item.image = imageUrl;
-      } else if (activeEditingTarget.type === 'wishlist') {
-        const item = wishlist.find(w => w.id === activeEditingTarget.id);
-        if (item) item.image = imageUrl;
-      }
-      saveData();
-      render();
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        if (activeEditingTarget.type === 'project') {
+          const item = projects.find(p => p.id === activeEditingTarget.id);
+          if (item) item.image = evt.target.result;
+        } else if (activeEditingTarget.type === 'wishlist') {
+          const item = wishlist.find(w => w.id === activeEditingTarget.id);
+          if (item) item.image = evt.target.result;
+        }
+        saveData();
+        render();
+      };
+      reader.readAsDataURL(file);
     }
     e.target.value = '';
   }
@@ -833,12 +836,16 @@
   function handleModalImageSelect(e) {
     const file = e.target.files[0];
     if (file) {
-      currentModalImageData = URL.createObjectURL(file);
-      const prev = document.getElementById('modal-img-preview');
-      if (prev) {
-        prev.src = currentModalImageData;
-        prev.style.display = 'block';
-      }
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        currentModalImageData = evt.target.result;
+        const prev = document.getElementById('modal-img-preview');
+        if (prev) {
+          prev.src = currentModalImageData;
+          prev.style.display = 'block';
+        }
+      };
+      reader.readAsDataURL(file);
     }
     e.target.value = '';
   }
