@@ -527,6 +527,7 @@
   let modalSelectedGlazes = [];
   let currentModalImageData = null;
   let activeEditingTarget = { type: 'project', id: null };
+  const MAX_IMAGE_COUNT = 20;
 
   const stages = [
     'Waiting for trimming',
@@ -580,6 +581,12 @@
 
   let autoBackupEnabled = JSON.parse(localStorage.getItem('pottery_auto_backup_enabled')) ?? false;
   let lastBackupTimestamp = parseInt(localStorage.getItem('pottery_last_backup_time')) || 0;
+
+  function countTotalImages() {
+    const projectImages = projects.filter(p => Boolean(p.image)).length;
+    const wishlistImages = wishlist.filter(w => Boolean(w.image)).length;
+    return projectImages + wishlistImages;
+  }
 
   function saveData() {
     localStorage.setItem('pottery_glazes', JSON.stringify(glazes));
@@ -778,7 +785,7 @@
   function startWishlistProject(wishlistId) {
     const w = wishlist.find(item => item.id === wishlistId);
     if (w) {
-      projects.push({
+      projects.unshift({
         id: Date.now(),
         title: w.title,
         clay: 'Standard Clay',
@@ -797,6 +804,14 @@
   }
 
   function triggerGalleryPicker(type, id) {
+    const currentItem = (type === 'project') ? projects.find(p => p.id === id) : wishlist.find(w => w.id === id);
+    const alreadyHasImage = currentItem && Boolean(currentItem.image);
+
+    if (!alreadyHasImage && countTotalImages() >= MAX_IMAGE_COUNT) {
+      alert(`Image limit reached! You already have ${MAX_IMAGE_COUNT} images attached across your projects and wishlist. Please delete an existing image to add a new one.`);
+      return;
+    }
+
     activeEditingTarget = { type, id };
     document.getElementById('inline-file-input').click();
   }
@@ -813,32 +828,75 @@
     render();
   }
 
+  // Canvas compressor to downscale and convert image to permanent Base64 string
+  function processImageFile(file, callback) {
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 800; // Keeps storage lightweight
+
+        if (width > height && width > maxDim) {
+          height *= maxDim / width;
+          width = maxDim;
+        } else if (height > maxDim) {
+          width *= maxDim / height;
+          height = maxDim;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        callback(dataUrl);
+      };
+      img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
   function handleInlineImageUpload(e) {
     const file = e.target.files[0];
     if (file && activeEditingTarget.id) {
-      const imageUrl = URL.createObjectURL(file);
-      if (activeEditingTarget.type === 'project') {
-        const item = projects.find(p => p.id === activeEditingTarget.id);
-        if (item) item.image = imageUrl;
-      } else if (activeEditingTarget.type === 'wishlist') {
-        const item = wishlist.find(w => w.id === activeEditingTarget.id);
-        if (item) item.image = imageUrl;
-      }
-      saveData();
-      render();
+      processImageFile(file, (dataUrl) => {
+        if (activeEditingTarget.type === 'project') {
+          const item = projects.find(p => p.id === activeEditingTarget.id);
+          if (item) item.image = dataUrl;
+        } else if (activeEditingTarget.type === 'wishlist') {
+          const item = wishlist.find(w => w.id === activeEditingTarget.id);
+          if (item) item.image = dataUrl;
+        }
+        saveData();
+        render();
+      });
     }
     e.target.value = '';
+  }
+
+  function triggerModalFilePicker() {
+    if (countTotalImages() >= MAX_IMAGE_COUNT) {
+      alert(`Image limit reached! You already have ${MAX_IMAGE_COUNT} images attached across your projects and wishlist. Please delete an existing image to add a new one.`);
+      return;
+    }
+    document.getElementById('modal-file-input').click();
   }
 
   function handleModalImageSelect(e) {
     const file = e.target.files[0];
     if (file) {
-      currentModalImageData = URL.createObjectURL(file);
-      const prev = document.getElementById('modal-img-preview');
-      if (prev) {
-        prev.src = currentModalImageData;
-        prev.style.display = 'block';
-      }
+      processImageFile(file, (dataUrl) => {
+        currentModalImageData = dataUrl;
+        const prev = document.getElementById('modal-img-preview');
+        if (prev) {
+          prev.src = currentModalImageData;
+          prev.style.display = 'block';
+        }
+      });
     }
     e.target.value = '';
   }
@@ -1093,7 +1151,7 @@
         </div>
         <div class="form-group">
           <label>Photo</label>
-          <button class="btn btn-secondary btn-sm" style="width:100%; margin-bottom:6px;" onclick="document.getElementById('modal-file-input').click()">Choose Photo</button>
+          <button class="btn btn-secondary btn-sm" style="width:100%; margin-bottom:6px;" onclick="triggerModalFilePicker()">Choose Photo</button>
           <img id="modal-img-preview" style="display:none; width:100%; height:120px; object-fit:cover; border-radius:8px;" />
         </div>
       `;
@@ -1127,7 +1185,7 @@
         </div>
         <div class="form-group">
           <label>Inspiration Photo</label>
-          <button class="btn btn-secondary btn-sm" style="width:100%; margin-bottom:6px;" onclick="document.getElementById('modal-file-input').click()">Choose Photo</button>
+          <button class="btn btn-secondary btn-sm" style="width:100%; margin-bottom:6px;" onclick="triggerModalFilePicker()">Choose Photo</button>
           <img id="modal-img-preview" style="display:none; width:100%; height:120px; object-fit:cover; border-radius:8px;" />
         </div>
       `;
