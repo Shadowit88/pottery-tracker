@@ -159,7 +159,6 @@
   .badge-glaze { background: #fde8e1; color: var(--primary); }
   .badge-pickup { background: #e2f0d9; color: #386641; }
   .badge-done { background: #d3d3d3; color: #4f4f4f; }
-  .badge-retrying { background: #f0e6f5; color: #6b3ba7; }
 
   .project-image-container {
     width: 100%;
@@ -172,12 +171,18 @@
     align-items: center;
     justify-content: center;
     position: relative;
+    cursor: pointer;
   }
 
   .project-image-container img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform 0.2s;
+  }
+
+  .project-image-container:hover img {
+    transform: scale(1.02);
   }
 
   .meta-row { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
@@ -282,20 +287,6 @@
     font-size: 12px;
   }
 
-  .file-upload-btn {
-    display: block;
-    width: 100%;
-    padding: 10px;
-    background: #f2eee9;
-    border: 1px dashed var(--primary);
-    border-radius: 8px;
-    text-align: center;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--primary-dark);
-    cursor: pointer;
-  }
-
   .glaze-item {
     display: flex;
     justify-content: space-between;
@@ -356,6 +347,41 @@
 
   .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
   
+  /* Lightbox Overlay for Full Image View */
+  .lightbox {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 300;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+  .lightbox.active { display: flex; }
+  .lightbox img {
+    max-width: 100%;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: 8px;
+  }
+  .lightbox-close {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: none;
+    font-size: 22px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   .toast {
     position: fixed;
     top: 20px;
@@ -400,6 +426,12 @@
 
 <div class="screen">
   <div class="toast" id="toast">Saved locally!</div>
+
+  <!-- Lightbox Modal for Full Image View -->
+  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+    <img id="lightbox-img" src="" alt="Full view" />
+  </div>
 
   <input type="file" id="inline-file-input" accept="image/*" onchange="handleInlineImageUpload(event)">
   <input type="file" id="import-file-input" accept=".json" onchange="handleImportBackup(event)">
@@ -501,8 +533,7 @@
     'Waiting for bisque fire',
     'Waiting for glaze',
     'Waiting for pick up',
-    'Done',
-    'Retrying'
+    'Done'
   ];
 
   const defaultGlazes = [
@@ -547,7 +578,7 @@
   let projects = JSON.parse(localStorage.getItem('pottery_projects')) || defaultProjects;
   let wishlist = JSON.parse(localStorage.getItem('pottery_wishlist')) || defaultWishlist;
 
-  let autoBackupEnabled = JSON.parse(localStorage.getItem('pottery_auto_backup_enabled')) ?? true;
+  let autoBackupEnabled = JSON.parse(localStorage.getItem('pottery_auto_backup_enabled')) ?? false;
   let lastBackupTimestamp = parseInt(localStorage.getItem('pottery_last_backup_time')) || 0;
 
   function saveData() {
@@ -561,6 +592,15 @@
     t.innerText = msg;
     t.style.display = 'block';
     setTimeout(() => { t.style.display = 'none'; }, 2500);
+  }
+
+  function openLightbox(imgSrc) {
+    document.getElementById('lightbox-img').src = imgSrc;
+    document.getElementById('lightbox').classList.add('active');
+  }
+
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('active');
   }
 
   function checkScheduledBackupReminder() {
@@ -732,26 +772,7 @@
     if (stage === 'Waiting for glaze') return 'badge-glaze';
     if (stage === 'Waiting for pick up') return 'badge-pickup';
     if (stage === 'Done') return 'badge-done';
-    if (stage === 'Retrying') return 'badge-retrying';
     return 'badge-trimming';
-  }
-
-  function copyToWishlist(projectId) {
-    const p = projects.find(proj => proj.id === projectId);
-    if (p) {
-      p.stage = 'Retrying';
-
-      wishlist.push({
-        id: Date.now(),
-        title: `${p.title} (Retry)`,
-        targetWeight: p.weight,
-        image: p.image,
-        notes: `Redo attempt. Previous note: ${p.notes || 'None'}`
-      });
-      saveData();
-      showToast('Moved to Retrying & Wishlist!');
-      render();
-    }
   }
 
   function startWishlistProject(wishlistId) {
@@ -795,19 +816,16 @@
   function handleInlineImageUpload(e) {
     const file = e.target.files[0];
     if (file && activeEditingTarget.id) {
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        if (activeEditingTarget.type === 'project') {
-          const item = projects.find(p => p.id === activeEditingTarget.id);
-          if (item) item.image = evt.target.result;
-        } else if (activeEditingTarget.type === 'wishlist') {
-          const item = wishlist.find(w => w.id === activeEditingTarget.id);
-          if (item) item.image = evt.target.result;
-        }
-        saveData();
-        render();
-      };
-      reader.readAsDataURL(file);
+      const imageUrl = URL.createObjectURL(file);
+      if (activeEditingTarget.type === 'project') {
+        const item = projects.find(p => p.id === activeEditingTarget.id);
+        if (item) item.image = imageUrl;
+      } else if (activeEditingTarget.type === 'wishlist') {
+        const item = wishlist.find(w => w.id === activeEditingTarget.id);
+        if (item) item.image = imageUrl;
+      }
+      saveData();
+      render();
     }
     e.target.value = '';
   }
@@ -815,17 +833,14 @@
   function handleModalImageSelect(e) {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        currentModalImageData = evt.target.result;
-        const prev = document.getElementById('modal-img-preview');
-        if (prev) {
-          prev.src = currentModalImageData;
-          prev.style.display = 'block';
-        }
-      };
-      reader.readAsDataURL(file);
+      currentModalImageData = URL.createObjectURL(file);
+      const prev = document.getElementById('modal-img-preview');
+      if (prev) {
+        prev.src = currentModalImageData;
+        prev.style.display = 'block';
+      }
     }
+    e.target.value = '';
   }
 
   function makeEditable(element, projectId, field, type = 'text') {
@@ -932,7 +947,7 @@
         return `
           <div class="card">
             ${p.image ? `
-              <div class="project-image-container">
+              <div class="project-image-container" onclick="openLightbox('${p.image}')">
                 <img src="${p.image}" alt="${p.title}" />
               </div>
             ` : ''}
@@ -963,7 +978,6 @@
             <div class="card-footer">
               <button class="btn btn-outline btn-sm" onclick="triggerGalleryPicker('project', ${p.id})">🖼️ ${p.image ? 'Choose Photo' : 'Add Photo'}</button>
               ${p.image ? `<button class="btn btn-outline btn-sm" onclick="removePhoto('project', ${p.id})">🗑️ Photo</button>` : ''}
-              ${p.stage !== 'Retrying' ? `<button class="btn btn-outline btn-sm" onclick="copyToWishlist(${p.id})">🔄 Retry</button>` : ''}
               <button class="btn btn-danger btn-sm" onclick="deleteProject(${p.id})">Delete</button>
             </div>
           </div>
@@ -989,7 +1003,7 @@
     document.getElementById('wishlist-list').innerHTML = wishlist.map(w => `
       <div class="card">
         ${w.image ? `
-          <div class="project-image-container">
+          <div class="project-image-container" onclick="openLightbox('${w.image}')">
             <img src="${w.image}" alt="${w.title}" />
           </div>
         ` : ''}
@@ -1036,7 +1050,7 @@
       const isSelected = modalSelectedGlazes.includes(g.id);
       html += `
         <div class="glaze-select-chip ${isSelected ? 'selected' : ''}" onclick="toggleModalGlazeSelect(${g.id})">
-          ${g.name}
+          ${g.name} (${g.cone})
         </div>
       `;
     });
@@ -1045,8 +1059,8 @@
   }
 
   function openAddModal() {
-    const container = document.getElementById('modal-form-container');
     const heading = document.getElementById('modal-heading');
+    const container = document.getElementById('modal-form-container');
     currentModalImageData = null;
     modalSelectedGlazes = [];
 
@@ -1055,68 +1069,66 @@
       container.innerHTML = `
         <div class="form-group">
           <label>Project Title</label>
-          <input type="text" id="m-title" placeholder="e.g. Speckled Mug">
+          <input type="text" id="add-title" placeholder="e.g. Speckled Mug">
         </div>
         <div class="form-group">
           <label>Clay Body</label>
-          <input type="text" id="m-clay" placeholder="e.g. Speckled Buff, Stoneware">
+          <input type="text" id="add-clay" placeholder="e.g. Speckled Buff">
         </div>
         <div class="form-group">
-          <label>Starting Weight (grams)</label>
-          <input type="number" id="m-weight" placeholder="e.g. 500">
+          <label>Weight (g)</label>
+          <input type="number" id="add-weight" placeholder="e.g. 500">
         </div>
         <div class="form-group">
-          <label>Initial Stage</label>
-          <select id="m-stage">
-            ${stages.map(s => `<option value="${s}">${s}</option>`).join('')}
-          </select>
+          <label>Before Dimensions</label>
+          <input type="text" id="add-before-size" placeholder="e.g. 10cm W × 8cm H">
         </div>
         <div class="form-group">
-          <label>Select Glazes</label>
+          <label>Initial Notes</label>
+          <textarea id="add-notes" rows="2" placeholder="Throwing details..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Glazes</label>
           <div class="glaze-select-grid" id="modal-glaze-chips"></div>
         </div>
         <div class="form-group">
           <label>Photo</label>
-          <div class="file-upload-btn" onclick="document.getElementById('modal-file-input').click()">📷 Choose Image</div>
-          <img id="modal-img-preview" style="width:100%; height:120px; object-fit:cover; border-radius:8px; margin-top:8px; display:none;">
-        </div>
-        <div class="form-group">
-          <label>Notes</label>
-          <textarea id="m-notes" rows="2" placeholder="Inspiration, dimensions, throwing notes..."></textarea>
+          <button class="btn btn-secondary btn-sm" style="width:100%; margin-bottom:6px;" onclick="document.getElementById('modal-file-input').click()">Choose Photo</button>
+          <img id="modal-img-preview" style="display:none; width:100%; height:120px; object-fit:cover; border-radius:8px;" />
         </div>
       `;
       renderModalGlazeChips();
     } else if (activeTab === 'glazes') {
-      heading.innerText = 'Add New Glaze';
+      heading.innerText = 'Add New Studio Glaze';
       container.innerHTML = `
         <div class="form-group">
           <label>Glaze Name</label>
-          <input type="text" id="m-glaze-name" placeholder="e.g. Obsidian">
+          <input type="text" id="add-glaze-name" placeholder="e.g. Blue Midnight">
         </div>
         <div class="form-group">
-          <label>Firing Cone / Temp</label>
-          <input type="text" id="m-glaze-cone" placeholder="e.g. Cone 5-6">
+          <label>Firing Cone</label>
+          <input type="text" id="add-glaze-cone" placeholder="e.g. Cone 6">
         </div>
       `;
     } else if (activeTab === 'wishlist') {
-      heading.innerText = 'Add Wishlist Idea';
+      heading.innerText = 'Add Wishlist Item';
       container.innerHTML = `
         <div class="form-group">
-          <label>Item Name</label>
-          <input type="text" id="m-wish-title" placeholder="e.g. Large Textured Pitcher">
+          <label>Idea / Title</label>
+          <input type="text" id="add-wish-title" placeholder="e.g. Fluted Pitcher">
         </div>
         <div class="form-group">
-          <label>Target Weight (grams)</label>
-          <input type="number" id="m-wish-weight" placeholder="e.g. 1500">
+          <label>Target Weight (g)</label>
+          <input type="number" id="add-wish-weight" placeholder="e.g. 800">
+        </div>
+        <div class="form-group">
+          <label>Notes / Technique</label>
+          <textarea id="add-wish-notes" rows="2" placeholder="Inspiration or throwing plan..."></textarea>
         </div>
         <div class="form-group">
           <label>Inspiration Photo</label>
-          <div class="file-upload-btn" onclick="document.getElementById('modal-file-input').click()">📷 Choose Image</div>
-          <img id="modal-img-preview" style="width:100%; height:120px; object-fit:cover; border-radius:8px; margin-top:8px; display:none;">
-        </div>
-        <div class="form-group">
-          <label>Notes & Technique Ideas</label>
-          <textarea id="m-wish-notes" rows="2" placeholder="Carving styles, rim finish, references..."></textarea>
+          <button class="btn btn-secondary btn-sm" style="width:100%; margin-bottom:6px;" onclick="document.getElementById('modal-file-input').click()">Choose Photo</button>
+          <img id="modal-img-preview" style="display:none; width:100%; height:120px; object-fit:cover; border-radius:8px;" />
         </div>
       `;
     }
@@ -1124,59 +1136,58 @@
     document.getElementById('add-modal').classList.add('active');
   }
 
+  function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+  }
+
   function submitModalForm() {
     if (activeTab === 'projects') {
-      const title = document.getElementById('m-title').value.trim() || 'Untitled Piece';
-      const clay = document.getElementById('m-clay').value.trim() || 'Standard Clay';
-      const weight = parseFloat(document.getElementById('m-weight').value) || 0;
-      const stage = document.getElementById('m-stage').value;
-      const notes = document.getElementById('m-notes').value.trim();
+      const title = document.getElementById('add-title').value.trim();
+      if (!title) { alert('Please enter a project title.'); return; }
 
-      projects.unshift({
+      projects.push({
         id: Date.now(),
-        title,
-        clay,
-        weight,
-        beforeSize: 'Unmeasured',
+        title: title,
+        clay: document.getElementById('add-clay').value.trim() || 'Standard Clay',
+        weight: parseFloat(document.getElementById('add-weight').value) || 0,
+        beforeSize: document.getElementById('add-before-size').value.trim() || 'Unmeasured',
         afterSize: 'Unmeasured',
-        stage,
-        glazeIds: modalSelectedGlazes,
+        stage: 'Waiting for trimming',
+        glazeIds: [...modalSelectedGlazes],
         image: currentModalImageData,
-        notes
+        notes: document.getElementById('add-notes').value.trim()
       });
+      saveData();
+      showToast('Project added!');
     } else if (activeTab === 'glazes') {
-      const name = document.getElementById('m-glaze-name').value.trim();
-      const cone = document.getElementById('m-glaze-cone').value.trim() || 'Cone 6';
-
-      if (!name) {
-        alert('Glaze name is required.');
-        return;
-      }
+      const name = document.getElementById('add-glaze-name').value.trim();
+      if (!name) { alert('Please enter a glaze name.'); return; }
 
       glazes.push({
         id: Date.now(),
-        name,
-        cone,
+        name: name,
+        cone: document.getElementById('add-glaze-cone').value.trim() || 'Cone 6',
         available: true
       });
+      saveData();
+      showToast('Glaze added!');
     } else if (activeTab === 'wishlist') {
-      const title = document.getElementById('m-wish-title').value.trim() || 'Wishlist Project';
-      const targetWeight = parseFloat(document.getElementById('m-wish-weight').value) || 0;
-      const notes = document.getElementById('m-wish-notes').value.trim();
+      const title = document.getElementById('add-wish-title').value.trim();
+      if (!title) { alert('Please enter a wishlist item title.'); return; }
 
-      wishlist.unshift({
+      wishlist.push({
         id: Date.now(),
-        title,
-        targetWeight,
+        title: title,
+        targetWeight: parseFloat(document.getElementById('add-wish-weight').value) || 1000,
         image: currentModalImageData,
-        notes
+        notes: document.getElementById('add-wish-notes').value.trim()
       });
+      saveData();
+      showToast('Added to wishlist!');
     }
 
-    saveData();
-    render();
     closeModal('add-modal');
-    showToast('Saved successfully!');
+    render();
   }
 
   function openBackupModal() {
@@ -1184,13 +1195,11 @@
     document.getElementById('backup-modal').classList.add('active');
   }
 
-  function closeModal(modalId) {
-    document.getElementById(modalId).classList.remove('active');
-  }
-
-  // Initial render and check scheduled backups
-  render();
-  checkScheduledBackupReminder();
+  window.onload = function() {
+    render();
+    checkScheduledBackupReminder();
+  };
 </script>
+
 </body>
 </html>
