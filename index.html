@@ -1145,7 +1145,7 @@
       const title = document.getElementById('add-title').value.trim();
       if (!title) { alert('Please enter a project title.'); return; }
 
-      projects.push({
+      projects.unshift({
         id: Date.now(),
         title: title,
         clay: document.getElementById('add-clay').value.trim() || 'Standard Clay',
